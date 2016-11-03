@@ -40,13 +40,32 @@ replace('ISBN')
 replace('Literary Genre')
 replace('Recommended Location')
 replace('Publisher')
+replace('Recommended Use') #Almost all the products with a
+#not null value are in the televsision category
 
-#SELLER, ACTUAL COLOR, ITEM CLASS ID, MPAA RATING, 
-#PRODUCT NAME, RECOMMENDED USE
+listRatings = ['Not Rated','PG-13','PG','R','G','Unrated',
+				'PG13','TV-MA','TV-PG','Please inquire if questions',
+				'TV-G','TV-14','TV-Y7','TV MA']
+listValuesForRatings=[.5,1.5,1,2,.75,.5,1.5,2,1,.5,.75,1.5,1.5,2]
+file['MPAA Rating'].replace([None],[0],inplace=True)
+file['MPAA Rating'].replace(listRatings,listValuesForRatings,inplace=True)
+
+listColors=['Multicolor','Black','Y','White','Silver','Multi-Colored',
+			'Gray','Blue','Clear','Brown','Assorted','Yellow',
+			'Green','Red']
+listValuesForColors=[1,1.5,.1,.2,.3,1,.4,.5,.6,.7,1,.1,.8,.9]
+
+file.loc[~file['Actual Color'].isin(listColors), 'Actual Color'] = 0
+file['Actual Color'].replace(listColors,listValuesForColors,inplace=True)
+
+file.loc[~file['Item Class ID'].isin(['19','1']), 'Item Class ID'] = 0
+file['Item Class ID'].replace(['19','1'],[1,2],inplace=True)
+
+#SELLER, PRODUCT NAME
 
 Xtrain = pd.np.array(file)
 
 #Contains all the tags.
 Ytrain = np.asarray(file['tag'].tolist())
 
-print(file['Recommended Use'])
+print(file['Item Class ID'].value_counts())
