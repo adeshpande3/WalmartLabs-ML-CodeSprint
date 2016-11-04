@@ -21,9 +21,9 @@ print(file.shape)
 
 #Removing all the rows where there is a missing tag or missing
 #product name
-file = file[file.tag.notnull()]
-file = file[file['Product Name'].notnull()]
-del file['item_id']
+file = file[file.tag.notnull()] #Remove all examples with no tag
+file = file[file['Product Name'].notnull()] #Remove examples with no product name
+del file['item_id'] #Useless column
 
 #This function replaces each value in the passed in category
 #so that the missing values are 0 and the other values are 1
@@ -43,29 +43,86 @@ replace('Publisher')
 replace('Recommended Use') #Almost all the products with a
 #not null value are in the televsision category
 
-listRatings = ['Not Rated','PG-13','PG','R','G','Unrated',
-				'PG13','TV-MA','TV-PG','Please inquire if questions',
-				'TV-G','TV-14','TV-Y7','TV MA']
+#Value_counts gets a list of the most frequently used values in
+#the given category
+
+######################################################################
+# Processing MPAA Ratings
+######################################################################
+
+ratingCounts = file['MPAA Rating'].value_counts().index.tolist()
+listRatings = []
+#Get the top 14 ratings
+for i in range(0,14): listRatings.append(ratingCounts[i])
 listValuesForRatings=[.5,1.5,1,2,.75,.5,1.5,2,1,.5,.75,1.5,1.5,2]
 file['MPAA Rating'].replace([None],[0],inplace=True)
 file['MPAA Rating'].replace(listRatings,listValuesForRatings,inplace=True)
 
-listColors=['Multicolor','Black','Y','White','Silver','Multi-Colored',
-			'Gray','Blue','Clear','Brown','Assorted','Yellow',
-			'Green','Red']
-listValuesForColors=[1,1.5,.1,.2,.3,1,.4,.5,.6,.7,1,.1,.8,.9]
+######################################################################
+# Processing Actual Color
+######################################################################
 
+colorCounts = file['Actual Color'].value_counts().index.tolist()
+listColors = []
+#Get the top 14 colors
+for i in range(0,14): listColors.append(colorCounts[i])
+listValuesForColors=[1,1.5,.1,.2,.3,1,.4,.5,.6,.7,1,.1,.8,.9]
 file.loc[~file['Actual Color'].isin(listColors), 'Actual Color'] = 0
 file['Actual Color'].replace(listColors,listValuesForColors,inplace=True)
+
+######################################################################
+# Processing Item Class ID
+######################################################################
 
 file.loc[~file['Item Class ID'].isin(['19','1']), 'Item Class ID'] = 0
 file['Item Class ID'].replace(['19','1'],[1,2],inplace=True)
 
-#SELLER, PRODUCT NAME
+######################################################################
+# Processing Sellers
+######################################################################
 
-Xtrain = pd.np.array(file)
+sellerCounts = file['Seller'].value_counts().index.tolist()
+listSellers=[]
+#Get the top 20 sellers
+for i in range(0,20): listSellers.append(sellerCounts[i])
+listValuesForSellers=([x * 0.2 for x in range(0, 20)])
+file.loc[~file['Seller'].isin(listSellers), 'Seller'] = 0
+file['Seller'].replace(listSellers,listValuesForSellers,inplace=True)
+
+######################################################################
+# Processing Product Name
+######################################################################
+
+#This is the hardest one to process since (mostly) all of the product 
+#names are unique. Therefore, we'll need a better way than just retreiving
+#the top x number of product names. 
+
+#TODO
+
+######################################################################
+# Processing Tags
+######################################################################
 
 #Contains all the tags.
-Ytrain = np.asarray(file['tag'].tolist())
+YtrainTemp = np.asarray(file['tag'].tolist())
+Ytrain=[]
+for y in YtrainTemp:
+	tempString = y
+	indexOfComma = tempString.find(',')
+	if (indexOfComma == -1):
+		#Theres only one value in the tag
+		indexOfRightBracket = tempString.index(']')
+		Ytrain.append(int(tempString[1:indexOfRightBracket]))
+	else:
+		#Theres more than one value and we have to just 
+		#take the first one
+		Ytrain.append(int(tempString[1:indexOfComma]))
+print Ytrain
 
-print(file['Item Class ID'].value_counts())
+del file['tag'] #Don't need the tags anymore
+Xtrain = pd.np.array(file)
+print Xtrain
+
+
+
+#print(file['Product Name'].value_counts())
