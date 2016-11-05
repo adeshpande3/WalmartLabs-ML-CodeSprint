@@ -4,7 +4,6 @@ import scipy
 import numpy as np
 import collections
 import pandas as pd 
-import matplotlib.pyplot as ply 
 import csv
 import sys
 
@@ -30,7 +29,7 @@ def preprocessDataset(filename, testOrTrain):
 	#product name
 	if (testOrTrain == "Train"):
 		file = file[file.tag.notnull()] #Remove all examples with no tag
-		file = file[file['Product Name'].notnull()] #Remove examples with no product name
+	file = file[file['Product Name'].notnull()] #Remove examples with no product name
 	del file['item_id'] #Useless column
 	del file['Color'] #Useless column
 	del file['Recommended Room'] #Useless column
@@ -100,20 +99,54 @@ def preprocessDataset(filename, testOrTrain):
 	listValuesForSellers=([x * 0.2 for x in range(0, 20)])
 	file.loc[~file['Seller'].isin(listSellers), 'Seller'] = 0
 	file['Seller'].replace(listSellers,listValuesForSellers,inplace=True)
+	return file
 
+def findMostCommon(file):
 	######################################################################
 	# Processing Product Name
 	######################################################################
 
 	#This is the hardest one to process since (mostly) all of the product 
 	#names are unique. Therefore, we'll need a better way than just retreiving
-	#the top x number of product names. 
+	#the top x number of product names. The main goal is to be able to parse
+	#the product name and figure out a category or label to assign it to.
 
-	#TODO
+	#The approach will be to go through every product name, and store,
+	#in a list, every word that appears. This is ONLY done for the training
+	#set. 
+	m_Common=[]
+	allProductNames = file['Product Name'].tolist()
+	allWords=[]
+	for product in allProductNames:
+		words = product.split()
+		for word in words:
+			allWords.append(word)
+	counter=collections.Counter(allWords)
+	m_Common = counter.most_common(500)
+	for index in range(0,len(m_Common)):
+		if (index >= len(m_Common)): break
+		if (len(m_Common[index][0]) <= 2):
+			m_Common.pop(index)
+	return m_Common
+
+def processProductName(common, file):
+	allProductNames = file['Product Name'].tolist()
+	for index in range(0,len(allProductNames)):
+		print index
+		for index2 in range(0,len(common)):
+			if (allProductNames[index].find(common[index2][0]) != -1):
+				file['Product Name'].replace([allProductNames[index]],[index2 * .1],inplace=True)
+				break
+			if (index2 == len(common) - 1):
+				file['Product Name'].replace([allProductNames[index]],[0],inplace=True)
+				break
 	return file
 
 trainFile = preprocessDataset("train.csv","Train")
 testFile = preprocessDataset("test.csv","Test")
+mostCommon = findMostCommon(trainFile)
+trainFile = processProductName(mostCommon,trainFile)
+testFile = processProductName(mostCommon,testFile)
 
 ######################################################################
 # Processing Tags
@@ -145,8 +178,7 @@ Ytrain = df1['labels'].tolist()
 del trainFile['tag'] #Don't need the tags anymore
 Xtrain = pd.np.array(trainFile)
 Xtest = pd.np.array(testFile)
-print len(Xtrain)
-sys.exit()
+numTestExamples = len(Xtest)
 
 ######################################################################
 # Applying Machine Learning
@@ -156,23 +188,30 @@ Xtrain = np.asarray(Xtrain)
 Xtest = np.asarray(Xtest)
 Ytrain = np.asarray(Ytrain)
 
-neigh = KNeighborsClassifier(n_neighbors=47)
+print Xtrain.shape
+print Xtest.shape
+print Ytrain.shape
+
+neigh = KNeighborsClassifier(n_neighbors=103)
 neigh.fit(Xtrain, Ytrain)
 results = np.ones((numTestExamples,2))
-counter = 10593
+counter = 10593 #item_id the test set starts from
+justPredictions=[]
 
 for x in range(0,numTestExamples):
-	print (neigh.predict(Xtest[x]))
+	justPredictions.append((neigh.predict(Xtest[x]))[0])
 	results[x,1] = (neigh.predict(Xtest[x]))[0]
 	results[x,0] = counter
 	counter = counter + 1
 
-#Saving predictions into a test file that can be uploaded to Hackerrnk
-#NOTE: You have to add a header row before submitting the tsv file
-with open("records.tsv", "w") as record_file:
-    record_file.write("item_id    tag\n")
-    for temp in results:
-        record_file.write(str(temp[0])+"  "+"["str(temp[1])+"]"+"\n")
-#np.savetxt('result.tsv', results, delimiter='\t', fmt = '%i') 
+df2 = pd.DataFrame({'labels': justPredictions})
+df2['labels'].replace(listValuesForLabels,listLabels,inplace=True)
+labelsList = df2['labels'].tolist()
+for x in range(0,numTestExamples):
+	results[x,1] = labelsList[x]
 
-#print(file['Product Name'].value_counts())
+#Saving predictions into a test file that can be uploaded to Hackerrank
+with open("tags.tsv", "w") as record_file:
+    record_file.write("item_id\ttag\n")
+    for temp in results:
+        record_file.write(str(temp[0])+"\t"+"["+str(temp[1])+"]"+"\n")
