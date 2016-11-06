@@ -9,3 +9,5 @@ Hackerrank provides two files (train.tsv and test.tsv) for the contestants. Look
 **Seller, Actual Color, Artist ID, Genre ID, ISBN, Item Class ID, Literary Genre, MPAA Rating, Product Name, Publisher, Recommended Location, and Recommended Use.** (14 Features In Total)
 
 The label for each product is the tags column, which tells you what shelf each of the training examples(products) went on. 
+
+I used a KNN approach for the machine learning algorithm, but looking back on the competition, this was not a good choice, since the most important feature in the data was the product name, and processing those strings into numeric values was not the best choice. 
